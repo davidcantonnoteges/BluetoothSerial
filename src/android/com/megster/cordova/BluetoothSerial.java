@@ -53,6 +53,7 @@ public class BluetoothSerial extends CordovaPlugin {
     private static final String CLEAR_DEVICE_DISCOVERED_LISTENER = "clearDeviceDiscoveredListener";
     private static final String SET_NAME = "setName";
     private static final String SET_DISCOVERABLE = "setDiscoverable";
+    private static final String PRINT_BASE64 = "setDiscoverable";
 
     // callbacks
     private CallbackContext connectCallback;
@@ -236,17 +237,81 @@ public class BluetoothSerial extends CordovaPlugin {
 
         } else if (action.equals(SET_DISCOVERABLE)) {
 
+      try {
+                String msg = args.getString(0);
+                Integer align = Integer.parseInt(args.getString(1));
+                printBase64(callbackContext, msg, align);
+            } catch (IOException e) {
+                Log.e(LOG_TAG, e.getMessage());
+                e.printStackTrace();
+            }
+            return true;
+
+         
+        
+        } else if (action.equals(PRINT_BASE64)) {
+
             int discoverableDuration = args.getInt(0);
             Intent discoverIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
             discoverIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, discoverableDuration);
             cordova.getActivity().startActivity(discoverIntent);
 
-        } else {
+        }
+        else {
             validAction = false;
 
         }
 
         return validAction;
+    }
+
+
+
+       boolean printBase64(CallbackContext callbackContext, String msg, Integer align) throws IOException {
+        try {
+
+            final String encodedString = msg;
+            final String pureBase64Encoded = encodedString.substring(encodedString.indexOf(",") + 1);
+            final byte[] decodedBytes = Base64.decode(pureBase64Encoded, Base64.DEFAULT);
+
+            Bitmap decodedBitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
+
+            bitmap = decodedBitmap;
+            int mWidth = bitmap.getWidth();
+            int mHeight = bitmap.getHeight();
+
+            bitmap = resizeImage(bitmap, 48 * 8, mHeight);
+
+            byte[] bt = decodeBitmapBase64(bitmap);
+
+            // not work
+            Log.d(LOG_TAG, "SWITCH ALIGN BASE64 -> " + align);
+            switch (align) {
+            case 0:
+                mmOutputStream.write(ESC_ALIGN_LEFT);
+                mmOutputStream.write(bt);
+                break;
+            case 1:
+                mmOutputStream.write(ESC_ALIGN_CENTER);
+                mmOutputStream.write(bt);
+                break;
+            case 2:
+                mmOutputStream.write(ESC_ALIGN_RIGHT);
+                mmOutputStream.write(bt);
+                break;
+            }
+            // tell the user data were sent
+            Log.d(LOG_TAG, "PRINT BASE64 SEND");
+            callbackContext.success("PRINT BASE64 SEND");
+            return true;
+
+        } catch (Exception e) {
+            String errMsg = e.getMessage();
+            Log.e(LOG_TAG, errMsg);
+            e.printStackTrace();
+            callbackContext.error(errMsg);
+        }
+        return false;
     }
 
     @Override
